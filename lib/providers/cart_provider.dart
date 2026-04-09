@@ -24,6 +24,18 @@ class CartProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  // The "-" logic
+  void decrement(int id) {
+    if (!_items.containsKey(id)) return;
+
+    if (_items[id]!.qty > 1) {
+      _items[id]!.qty--;
+    } else {
+      _items.remove(id);
+    }
+    notifyListeners();
+  }
+
   void remove(int id) {
     _items.remove(id);
     notifyListeners();
@@ -31,9 +43,7 @@ class CartProvider with ChangeNotifier {
 
   double get total {
     double sum = 0;
-    _items.forEach((key, item) {
-      sum += item.total;
-    });
+    _items.forEach((key, item) => sum += item.total);
     return sum;
   }
 

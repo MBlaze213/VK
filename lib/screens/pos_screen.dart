@@ -5,31 +5,25 @@ import '../providers/cart_provider.dart';
 import '../data/products.dart';
 
 class POSScreen extends StatelessWidget {
-  POSScreen({super.key});
+  const POSScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.brown[50],
       appBar: AppBar(title: const Text("☕ Vest Kape"), centerTitle: true),
-
-      // 🔥 RESPONSIVE BODY
       body: LayoutBuilder(
         builder: (context, constraints) {
-          if (constraints.maxWidth < 600) {
-            return _buildMobileLayout(context);
-          } else {
-            return _buildDesktopLayout(context);
-          }
+          return constraints.maxWidth < 600
+              ? _buildMobileLayout(context)
+              : _buildDesktopLayout(context);
         },
       ),
     );
   }
 
-  // 📱 MOBILE VIEW
   Widget _buildMobileLayout(BuildContext context) {
     final products = ProductData.products;
-
     return Column(
       children: [
         Expanded(
@@ -40,21 +34,17 @@ class POSScreen extends StatelessWidget {
               crossAxisCount: 2,
               childAspectRatio: 1,
             ),
-            itemBuilder: (context, index) {
-              return _productCard(context, products[index]);
-            },
+            itemBuilder: (context, index) =>
+                _productCard(context, products[index]),
           ),
         ),
-
-        SizedBox(height: 200, child: _cartPanel(context)),
+        SizedBox(height: 250, child: _cartPanel(context)),
       ],
     );
   }
 
-  // 💻 DESKTOP / LANDSCAPE VIEW
   Widget _buildDesktopLayout(BuildContext context) {
     final products = ProductData.products;
-
     return Row(
       children: [
         Expanded(
@@ -66,60 +56,45 @@ class POSScreen extends StatelessWidget {
               crossAxisCount: 3,
               childAspectRatio: 1.2,
             ),
-            itemBuilder: (context, index) {
-              return _productCard(context, products[index]);
-            },
+            itemBuilder: (context, index) =>
+                _productCard(context, products[index]),
           ),
         ),
-
         Expanded(child: _cartPanel(context)),
       ],
     );
   }
 
-  // ☕ PRODUCT CARD
   Widget _productCard(BuildContext context, Product p) {
     final cart = Provider.of<CartProvider>(context, listen: false);
-
     return GestureDetector(
       onTap: () => cart.add(p),
       child: Card(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         elevation: 3,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.local_cafe, color: Colors.brown, size: 30),
-
-              const SizedBox(height: 8),
-
-              Text(
-                p.name,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 13),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.local_cafe, color: Colors.brown, size: 30),
+            const SizedBox(height: 8),
+            Text(
+              p.name,
+              style: const TextStyle(fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+            Text(
+              "₱${p.price}",
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.brown,
               ),
-
-              const SizedBox(height: 5),
-
-              Text(
-                "₱${p.price}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.brown,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  // 🛒 CART PANEL
   Widget _cartPanel(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
 
@@ -136,56 +111,89 @@ class POSScreen extends StatelessWidget {
             "🛒 Cart",
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
-
           const Divider(),
-
           Expanded(
             child: cart.items.isEmpty
                 ? const Center(child: Text("No items yet"))
                 : ListView(
                     children: cart.items.values.map((item) {
                       return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 4),
                         child: ListTile(
-                          title: Text(item.product.name),
-                          subtitle: Text("Qty: ${item.qty}"),
-                          trailing: Text("₱${item.total.toStringAsFixed(2)}"),
+                          title: Text(
+                            item.product.name,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          subtitle: Row(
+                            children: [
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(
+                                  Icons.remove_circle,
+                                  color: Colors.red,
+                                  size: 22,
+                                ),
+                                onPressed: () =>
+                                    cart.decrement(item.product.id),
+                              ),
+                              Text(
+                                "${item.qty}",
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              IconButton(
+                                visualDensity: VisualDensity.compact,
+                                icon: const Icon(
+                                  Icons.add_circle,
+                                  color: Colors.green,
+                                  size: 22,
+                                ),
+                                onPressed: () => cart.add(item.product),
+                              ),
+                            ],
+                          ),
+                          trailing: Text(
+                            "₱${item.total.toStringAsFixed(2)}",
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                         ),
                       );
                     }).toList(),
                   ),
           ),
-
           const Divider(),
-
-          Text("Total", style: TextStyle(color: Colors.grey[600])),
-
-          Text(
-            "₱${cart.total.toStringAsFixed(2)}",
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.brown,
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Total:"),
+              Text(
+                "₱${cart.total.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.brown,
+                ),
+              ),
+            ],
           ),
-
           const SizedBox(height: 10),
-
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.brown,
-                padding: const EdgeInsets.all(12),
+                foregroundColor: Colors.white,
               ),
-              onPressed: () {
-                if (cart.items.isEmpty) return;
-
-                cart.clear();
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("✅ Order Completed")),
-                );
-              },
+              onPressed: cart.items.isEmpty
+                  ? null
+                  : () {
+                      cart.clear();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("✅ Order Completed")),
+                      );
+                    },
               child: const Text("Checkout"),
             ),
           ),
