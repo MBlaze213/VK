@@ -3,6 +3,12 @@ import 'package:provider/provider.dart';
 import '../models/product.dart';
 import '../providers/cart_provider.dart';
 import '../data/products.dart';
+import '../data/database_helper.dart';
+
+// NEW IMPORTS
+import 'sales_screen.dart';
+import 'receipt_screen.dart';
+import '../data/export_service.dart'; // or services/
 
 class POSScreen extends StatelessWidget {
   const POSScreen({super.key});
@@ -11,7 +17,76 @@ class POSScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.brown[50],
-      appBar: AppBar(title: const Text("☕ Vest Kape"), centerTitle: true),
+
+      appBar: AppBar(
+        title: const Text("☕ Vest Kape"),
+        centerTitle: true,
+        backgroundColor: Colors.brown,
+        foregroundColor: Colors.white,
+        actions: [
+          // 📊 Sales Report
+          IconButton(
+            icon: const Icon(Icons.bar_chart),
+            tooltip: "Sales Report",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SalesScreen()),
+              );
+            },
+          ),
+
+          // 🧾 Receipt Preview (FIXED ✅)
+          IconButton(
+            icon: const Icon(Icons.receipt_long),
+            tooltip: "Receipt",
+            onPressed: () {
+              final cart = Provider.of<CartProvider>(context, listen: false);
+
+              if (cart.items.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("🛒 Cart is empty")),
+                );
+                return;
+              }
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => ReceiptScreen(
+                    items: Map<int, dynamic>.from(cart.items),
+                    total: cart.total,
+                  ),
+                ),
+              );
+            },
+          ),
+
+          // 📤 Export Excel
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: "Export Excel",
+            onPressed: () async {
+              final path = await ExportService.exportSales();
+
+              if (path == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text("❌ Permission denied")),
+                );
+                return;
+              }
+
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text("✅ Saved to: $path"),
+                  backgroundColor: Colors.brown, // ☕ KEEP THEME
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+
       body: LayoutBuilder(
         builder: (context, constraints) {
           return constraints.maxWidth < 600
@@ -22,6 +97,7 @@ class POSScreen extends StatelessWidget {
     );
   }
 
+  // 📱 MOBILE
   Widget _buildMobileLayout(BuildContext context) {
     final products = ProductData.products;
     return Column(
@@ -43,6 +119,7 @@ class POSScreen extends StatelessWidget {
     );
   }
 
+  // 💻 DESKTOP
   Widget _buildDesktopLayout(BuildContext context) {
     final products = ProductData.products;
     return Row(
@@ -65,8 +142,10 @@ class POSScreen extends StatelessWidget {
     );
   }
 
+  // ☕ PRODUCT CARD
   Widget _productCard(BuildContext context, Product p) {
     final cart = Provider.of<CartProvider>(context, listen: false);
+
     return GestureDetector(
       onTap: () => cart.add(p),
       child: Card(
@@ -95,6 +174,7 @@ class POSScreen extends StatelessWidget {
     );
   }
 
+  // 🛒 CART PANEL
   Widget _cartPanel(BuildContext context) {
     final cart = Provider.of<CartProvider>(context);
 
@@ -112,6 +192,8 @@ class POSScreen extends StatelessWidget {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const Divider(),
+
+          // 🧾 CART ITEMS
           Expanded(
             child: cart.items.isEmpty
                 ? const Center(child: Text("No items yet"))
@@ -163,7 +245,10 @@ class POSScreen extends StatelessWidget {
                     }).toList(),
                   ),
           ),
+
           const Divider(),
+
+          // 💰 TOTAL
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -178,7 +263,10 @@ class POSScreen extends StatelessWidget {
               ),
             ],
           ),
+
           const SizedBox(height: 10),
+
+          // ✅ CHECKOUT BUTTON (WITH DATABASE + RECEIPT)
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
@@ -188,10 +276,46 @@ class POSScreen extends StatelessWidget {
               ),
               onPressed: cart.items.isEmpty
                   ? null
-                  : () {
+                  : () async {
+                      final db = DatabaseHelper.instance;
+
+                      // 🔹 Save order
+                      final orderId = await db.insertOrder(
+                        cart.total,
+                        DateTime.now().toString(),
+                      );
+
+                      // 🔹 Save items
+                      for (var item in cart.items.values) {
+                        await db.insertOrderItem(
+                          orderId,
+                          item.product.name,
+                          item.product.price,
+                          item.qty,
+                        );
+                      }
+
+                      // 🔹 Navigate to receipt BEFORE clearing
+                      // 🔹 CREATE SNAPSHOT BEFORE CLEARING
+                      final receiptItems = Map<int, dynamic>.from(cart.items);
+                      final receiptTotal = cart.total;
+
+                      // 🔹 Navigate with data
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => ReceiptScreen(
+                            items: receiptItems,
+                            total: receiptTotal,
+                          ),
+                        ),
+                      );
+
+                      // 🔹 NOW clear safely
                       cart.clear();
+
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("✅ Order Completed")),
+                        const SnackBar(content: Text("✅ Order Saved")),
                       );
                     },
               child: const Text("Checkout"),
